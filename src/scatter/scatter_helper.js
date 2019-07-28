@@ -1,6 +1,6 @@
 import ScatterJS from 'scatterjs-core';
-import ScatterEOS from 'scatterjs-plugin-eosjs';
-import Eos from 'eosjs';
+import ScatterEOS from 'scatterjs-plugin-eosjs2';
+import { Api, JsonRpc, JsSignatureProvider } from 'eosjs';
 
 import {
     parseEOS,
@@ -14,19 +14,20 @@ let
 
 ScatterJS.plugins( new ScatterEOS() );
 
-const network = {
+const network = ScatterJS.Network.fromJson({
     blockchain:'eos',
     chainId:'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473',
     host:'jungle.eosmetal.io',
     port:18888,
     protocol:'http'
-};
+});
+const rpc = new JsonRpc(network.fullhost());
 
 export const loginHistoryExists = () => !!localStorage.getItem("lastLoginAt");
 const setLoginHistory    = () => localStorage.setItem("lastLoginAt", new Date().getTime());
 
 export const connect = appName => (new Promise((resolve, reject)=> {
-    ScatterJS.scatter.connect(appName).then(connected => {
+    ScatterJS.scatter.connect(appName, {network}).then(connected => {
         const
             onSuccess = () => {
                 scatter = ScatterJS.scatter;
@@ -48,7 +49,7 @@ export const login = ()=> {
 
         // Set expiration time for eos connection, can have more options
         const eosOptions = { expireInSeconds: 60 };
-        userEosConnection = scatter.eos(network, Eos, eosOptions);
+        userEosConnection = scatter.eos(network, Api, rpc, eosOptions);
         setLoginHistory();
         return {
             name: userAccount.name,
@@ -73,28 +74,27 @@ export const sendTokens = ({toAccount, amount, memo}) => {
     });
 };
 
-export const getWallet = () => {
-    return userEosConnection.getAccount(userAccount.name).then(userDetails=> {
-        const
-            liquidToken = parseEOS(userDetails.core_liquid_balance),
-            netStaked = parseEOS(userDetails.total_resources.net_weight),
-            cpuStaked = parseEOS(userDetails.total_resources.cpu_weight),
-            totalWorth = liquidToken + netStaked + cpuStaked;
-
-        return {
-            balance: {
-                liquidToken,
-                totalWorth,
-                netStaked,
-                cpuStaked,
-                refunding: '',
-                stakedByOthers: '',
-            },
-            resource: {
-                net: {total: userDetails.net_limit.max, available: userDetails.net_limit.available},
-                cpu: {total: userDetails.cpu_limit.max, available: userDetails.cpu_limit.available},
-                ram: {total: userDetails.ram_quota,     available: userDetails.ram_usage}
-            }
+export const getWallet = async () => {
+    const userDetails = await rpc.get_account(userAccount.name);
+    const 
+        liquidToken = parseEOS(userDetails.core_liquid_balance),
+        netStaked = parseEOS(userDetails.total_resources.net_weight),
+        cpuStaked = parseEOS(userDetails.total_resources.cpu_weight),
+        totalWorth = liquidToken + netStaked + cpuStaked;
+    
+    return {
+        balance: {
+            liquidToken,
+            totalWorth,
+            netStaked,
+            cpuStaked,
+            refunding: '',
+            stakedByOthers: '',
+        },
+        resource: {
+            net: { total: userDetails.net_limit.max, available: userDetails.net_limit.available },
+            cpu: { total: userDetails.cpu_limit.max, available: userDetails.cpu_limit.available },
+            ram: { total: userDetails.ram_quota, available: userDetails.ram_usage }
         }
-    });
+    };
 };
