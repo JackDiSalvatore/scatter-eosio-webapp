@@ -17,10 +17,10 @@ ScatterJS.plugins( new ScatterEOS() );
 const network = ScatterJS.Network.fromJson({
     blockchain:'eos',
     chainId:'e70aaab8997e1dfce58fbfac80cbbb8fecec7b99cf982a9444273cbc64c41473',
-    host:'jungle.eosmetal.io',
-    port:18888,
-    protocol:'http'
-});
+    host:'jungle2.cryptolions.io',
+    port:443,
+    protocol:'https'
+});  
 const rpc = new JsonRpc(network.fullhost());
 
 export const loginHistoryExists = () => !!localStorage.getItem("lastLoginAt");
